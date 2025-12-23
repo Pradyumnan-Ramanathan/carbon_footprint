@@ -1,0 +1,15 @@
+############################
+# Node.js
+############################
+nodePart/node_modules/
+nodePart/.env
+nodePart/.env.*
+
+############################
+# Python
+############################
+pythonPart/venv/
+pythonPart/__pycache__/
+pythonPart/**/*.pyc
+pythonPart/.env
+pythonPart/.env.*
