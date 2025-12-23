@@ -1,15 +1,23 @@
 const express = require('express');
-const multer = require("multer");
-const axios = require("axios");
-const FormData = require("form-data");
-const fs = require("fs");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./swagger");
+const detectRouter = require("./routes/detectRoute");
+const userRouter = require("./routes/userRoute");
+const user = require('./models/user');
+const mongoose = require('mongoose');
+const cookieParser = require('cookie-parser');
+require('dotenv').config();
+
+mongoose.connect(process.env.MONGO_URL).then(() => {
+  console.log('MongoDB connected');
+}).catch(err => {
+  console.error('MongoDB connection error:', err);
+});
 
 const app = express();
-const upload = multer({ dest: "uploads/" });
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -67,37 +75,90 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *         description: YOLO inference failed
  */
 
+/**
+ * @openapi
+ * /register:
+ *   post:
+ *     summary: Register a new user
+ *     tags:
+ *       - Users
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, email, password]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Jane Doe
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: jane@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: strongPassword123
+ *     responses:
+ *       201:
+ *         description: User created and authenticated
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ *
+ * /login:
+ *   post:
+ *     summary: Login an existing user
+ *     tags:
+ *       - Users
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: jane@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: strongPassword123
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       400:
+ *         description: Missing credentials
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Server error
+ *
+ * /logout:
+ *   get:
+ *     summary: Logout the current user
+ *     tags:
+ *       - Users
+ *     responses:
+ *       200:
+ *         description: Logged out
+ *       401:
+ *         description: Not authenticated
+ *       500:
+ *         description: Server error
+ */
 
-app.post("/detect", upload.single("image"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No image uploaded" });
-    }
 
-    const formData = new FormData();
-    formData.append("file", fs.createReadStream(req.file.path));
+// Mount detect routes
+app.use("/detect", detectRouter);
 
-    const yoloResponse = await axios.post(
-      "http://localhost:8000/detect",
-      formData,
-      {
-        headers: formData.getHeaders(),
-        timeout: 60000, // YOLO can be slow on CPU
-      }
-    );
-
-    // Clean temp file
-    fs.unlinkSync(req.file.path);
-
-    res.json({
-      success: true,
-      detections: yoloResponse.data.detections,
-    });
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ error: "YOLO inference failed" });
-  }
-});
+app.use("/",userRouter);
 
 app.listen(5000, () => {
   console.log("Node server running at http://localhost:5000");

@@ -1,0 +1,10 @@
+mongoose
+jsonwebtoken 
+validator 
+bcryptjs 
+cookie-parser
+axios 
+multer 
+form-data 
+fs
+dotenv
