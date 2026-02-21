@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+ultralytics
+torch
+torchvision
+opencv-python
+numpy
+pillow
+python-multipart
+timm==0.6.13
+einops
+easyocr
+scikit-image
+matplotlib
