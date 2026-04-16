@@ -1,0 +1,8 @@
+pydantic
+numpy
+torch
+torchvision
+Pillow
+paddleocr
+transformers
+pinecone
