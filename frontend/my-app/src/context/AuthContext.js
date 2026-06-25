@@ -33,7 +33,12 @@ export function AuthProvider({ children }) {
                 credentials: "include", // sends/receives the httpOnly JWT cookie
                 body: JSON.stringify({ name, email, password }),
             });
-            const data = await res.json();
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                throw new Error("Could not parse server response. Please try again.");
+            }
             if (!res.ok) throw new Error(data.message || "Registration failed");
             setUser({ name: data.user.name, email: data.user.email });
             return data;
@@ -51,7 +56,12 @@ export function AuthProvider({ children }) {
                 credentials: "include", // sends/receives the httpOnly JWT cookie
                 body: JSON.stringify({ email, password }),
             });
-            const data = await res.json();
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                throw new Error("Could not parse server response. Please try again.");
+            }
             if (!res.ok) throw new Error(data.message || "Login failed");
             setUser({ name: data.user.name, email: data.user.email });
             return data;

@@ -3,6 +3,7 @@ const FormData = require("form-data");
 const fs = require("fs");
 const crypto = require("crypto");
 const History = require("../models/history");
+const Carbon = require("../models/carbon");
 
 exports.detect = async (req, res) => {
 	try {
@@ -13,7 +14,7 @@ exports.detect = async (req, res) => {
 		const formData = new FormData();
 		formData.append("file", fs.createReadStream(req.file.path));
 
-		const yoloResponse = await axios.post(
+		const detectionResponse = await axios.post(
 			"http://localhost:8000/detect",
 			formData,
 			{
@@ -24,8 +25,27 @@ exports.detect = async (req, res) => {
 
 		fs.unlinkSync(req.file.path);
 
-		const detections = yoloResponse.data.detections;
+		const detections = detectionResponse.data.detections;
 		const prediction_id = crypto.randomUUID();
+
+		// Apply database overrides and format labels
+		let totalFootprint = 0;
+		for (let d of detections) {
+			if (d.name) {
+				const carbonDb = await Carbon.findOne({
+					title: { $regex: new RegExp(`^${d.name.trim()}$`, "i") }
+				});
+
+				if (carbonDb) {
+					console.log(`DB Override found for "${d.name}": VLM footprint = ${d.carbon_footprint}, DB footprint = ${carbonDb.footprint}`);
+					d.carbon_footprint = carbonDb.footprint;
+					d.footprint_explanation = "Using verified database value.";
+				}
+			}
+			const footprintVal = d.carbon_footprint !== undefined ? d.carbon_footprint : 0;
+			d.label = `${d.name || "Unknown Item"} (CO2e: ${footprintVal.toFixed(2)} kg)`;
+			totalFootprint += footprintVal;
+		}
 
 		// Create a basic summary result object (Dashboard expects result.prediction and result.probability)
 		const latestRisk = detections.length > 0 ? 1 : 0;
@@ -37,7 +57,8 @@ exports.detect = async (req, res) => {
 			prediction: detections,
 			result: {
 				prediction: latestRisk,
-				probability: highestConf
+				probability: highestConf,
+				total_footprint: totalFootprint
 			}
 		});
 
@@ -47,6 +68,9 @@ exports.detect = async (req, res) => {
 		});
 	} catch (error) {
 		console.error(error.message);
-		res.status(500).json({ error: "YOLO inference failed" });
+		if (req.file && fs.existsSync(req.file.path)) {
+			fs.unlinkSync(req.file.path);
+		}
+		res.status(500).json({ error: "Object detection failed" });
 	}
 };

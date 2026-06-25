@@ -52,19 +52,17 @@ export default function Predict() {
         try {
             const opts = { method: "POST", credentials: "include" };
 
-            const [detectRes, depthRes, ocrRes] = await Promise.all([
+            const [detectRes, depthRes] = await Promise.all([
                 fetch(`${API}/detect`, { ...opts, body: buildForm() }),
                 fetch(`${API}/depth`, { ...opts, body: buildForm() }),
-                fetch(`${API}/ocr`, { ...opts, body: buildForm() }),
             ]);
 
-            const [detectData, depthData, ocrData] = await Promise.all([
+            const [detectData, depthData] = await Promise.all([
                 detectRes.json(),
                 depthRes.json(),
-                ocrRes.json(),
             ]);
 
-            setResults({ detect: detectData, depth: depthData, ocr: ocrData });
+            setResults({ detect: detectData, depth: depthData });
         } catch (err) {
             setError(err.message || "Something went wrong. Please try again.");
         } finally {
@@ -78,7 +76,7 @@ export default function Predict() {
                 Carbon Footprint Analyzer
             </h1>
             <p className="text-center text-muted mb-4">
-                Upload an image — we'll run YOLO detection, depth estimation, and OCR simultaneously.
+                Upload an image — we'll run VLM object detection and depth estimation simultaneously.
             </p>
 
             <form onSubmit={handleSubmit} className="result-card">
@@ -126,7 +124,7 @@ export default function Predict() {
                 <div className="results-section">
                     {/* YOLO Detection */}
                     <div className="result-card">
-                        <h2 className="result-header">🎯 YOLO Object Detection</h2>
+                        <h2 className="result-header">🎯 VLM Object Detection</h2>
                         {results.detect?.detections?.length > 0 ? (
                             <div className="table-responsive">
                                 <table className="table">
@@ -185,21 +183,6 @@ export default function Predict() {
                         )}
                     </div>
 
-                    {/* OCR */}
-                    <div className="result-card">
-                        <h2 className="result-header">📝 OCR Extracted Text</h2>
-                        {results.ocr?.error ? (
-                            <p className="alert alert-error">{results.ocr.error}</p>
-                        ) : results.ocr?.text?.length > 0 ? (
-                            <ul className="ocr-list">
-                                {results.ocr.text.map((line, i) => (
-                                    <li key={i} className="ocr-item">{line}</li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-muted">No text found in the image.</p>
-                        )}
-                    </div>
                 </div>
             )}
         </div>

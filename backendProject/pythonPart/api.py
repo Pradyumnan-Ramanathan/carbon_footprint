@@ -1,10 +1,12 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
-from ultralytics import YOLO
-import cv2
 import numpy as np
-import torch
 import io
+import base64
+import json
+import os
+import hashlib
+import asyncio
 from PIL import Image
 
 # Import from refactored modules
@@ -13,23 +15,24 @@ import text_scrapping_depth_estimation as ocr_module
 
 app = FastAPI()
 
-# --- Object Detection (YOLO) Setup ---
-try:
-    yolo_model = YOLO("best.pt")
-except Exception as e:
-    print(f"Warning: Could not load YOLO model: {e}")
-    yolo_model = None
-
 # --- Depth Estimation Setup ---
 zoe_model = depth_module.get_depth_model()
 
-# --- OCR Setup ---
-ocr_reader = ocr_module.get_ocr_reader()
+# Cache to prevent double API call for the same image (concurrent /detect and /ocr)
+vlm_cache = {}
+vlm_lock = asyncio.Lock()
 
-def load_image_from_bytes(file_bytes):
-    nparr = np.frombuffer(file_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    return img
+async def get_vlm_result(image_bytes: bytes) -> dict:
+    md5_hash = hashlib.md5(image_bytes).hexdigest()
+    async with vlm_lock:
+        if md5_hash in vlm_cache:
+            print(f"Cache hit for MD5: {md5_hash}")
+            return vlm_cache[md5_hash]
+        
+        print(f"Cache miss for MD5: {md5_hash}. Fetching from OpenRouter VLM...")
+        result = await asyncio.to_thread(ocr_module.detect_objects_and_text_openrouter, image_bytes)
+        vlm_cache[md5_hash] = result
+        return result
 
 @app.get("/")
 def read_root():
@@ -37,38 +40,51 @@ def read_root():
 
 @app.post("/detect")
 async def detect(file: UploadFile = File(...)):
-    if yolo_model is None:
-        raise HTTPException(status_code=500, detail="YOLO model not loaded")
-    
     img_bytes = await file.read()
-    img = load_image_from_bytes(img_bytes)
     
-    results = yolo_model(img)
+    try:
+        pil_img = Image.open(io.BytesIO(img_bytes))
+        width, height = pil_img.size
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image file: {e}")
+        
+    vlm_res = await get_vlm_result(img_bytes)
     
     output = []
-    for r in results:
-        for box in r.boxes:
-            output.append({
-                "class_id": int(box.cls),
-                "confidence": float(box.conf),
-                "bbox": box.xyxy[0].tolist(),
-                "label": yolo_model.names[int(box.cls)]
-            })
+    for i, det in enumerate(vlm_res.get("detections", [])):
+        # Normalize box to actual pixels
+        box = det.get("box", [0, 0, 1000, 1000])
+        xmin, ymin, xmax, ymax = box
+        bbox = [
+            (xmin / 1000.0) * width,
+            (ymin / 1000.0) * height,
+            (xmax / 1000.0) * width,
+            (ymax / 1000.0) * height
+        ]
+        
+        name = det.get("name", "Unknown Item")
+        carbon_val = float(det.get("carbon_footprint", 0.0))
+        label = f"{name} (CO2e: {carbon_val:.2f} kg)"
+        
+        output.append({
+            "class_id": i,
+            "confidence": 1.0,
+            "bbox": bbox,
+            "label": label,
+            "name": name,
+            "carbon_footprint": carbon_val,
+            "footprint_explanation": det.get("footprint_explanation", "")
+        })
             
     return {"success": True, "detections": output}
 
 @app.post("/depth")
 async def depth(file: UploadFile = File(...)):
-    """
-    Estimate depth using the refactored carbon_finders_depth_estimation module.
-    """
     if zoe_model is None:
         raise HTTPException(status_code=500, detail="ZoeDepth model not loaded")
 
     img_bytes = await file.read()
     
-    # Use the module's estimate_depth function
-    # It handles PIL/numpy conversion internally if we pass bytes converted to PIL
     try:
         pil_img = Image.open(io.BytesIO(img_bytes))
         depth_numpy = depth_module.estimate_depth(zoe_model, pil_img)
@@ -84,75 +100,69 @@ async def depth(file: UploadFile = File(...)):
         "min_depth": min_depth,
         "max_depth": max_depth,
         "average_depth": avg_depth,
-        # "depth_map_shape": depth_numpy.shape
     }
 
 @app.post("/ocr")
 async def ocr(file: UploadFile = File(...)):
-    """
-    Perform OCR using the refactored text_scrapping_depth_estimation module.
-    """
-    if ocr_reader is None:
-        raise HTTPException(status_code=500, detail="EasyOCR not loaded")
-        
     img_bytes = await file.read()
-    img = load_image_from_bytes(img_bytes)
+    vlm_res = await get_vlm_result(img_bytes)
     
-    try:
-        # Use simple detail=0 for text list
-        text_results = ocr_module.extract_text(ocr_reader, img, detail=0)
-    except Exception as e:
-         raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
-
     return {
         "success": True,
-        "text": text_results
+        "text": vlm_res.get("text", [])
     }
 
 @app.post("/detect_ocr")
 async def detect_ocr(file: UploadFile = File(...)):
-    """
-    Run YOLO detection, then run OCR on the cropped detections using the new module.
-    """
-    if yolo_model is None or ocr_reader is None:
-        raise HTTPException(status_code=500, detail="Models not loaded")
-        
     img_bytes = await file.read()
-    img = load_image_from_bytes(img_bytes)
     
-    results = yolo_model(img)
+    try:
+        pil_img = Image.open(io.BytesIO(img_bytes))
+        width, height = pil_img.size
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image file: {e}")
+        
+    vlm_res = await get_vlm_result(img_bytes)
     
-    detections_with_text = []
-    
-    for r in results:
-        for box in r.boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            
-            # Crop with padding
-            h, w, _ = img.shape
-            pad = 5
-            crop = img[max(0, y1-pad):min(h, y2+pad), max(0, x1-pad):min(w, x2+pad)]
-            
-            detected_text = []
-            if crop.size > 0:
-                try:
-                    # Use module function on crop
-                    detected_text = ocr_module.extract_text(ocr_reader, crop, detail=0)
-                except:
-                    pass
-            
-            detections_with_text.append({
-                "class_id": int(box.cls),
-                "label": yolo_model.names[int(box.cls)],
-                "bbox": [x1, y1, x2, y2],
-                "confidence": float(box.conf),
-                "text": detected_text
-            })
+    output = []
+    for i, det in enumerate(vlm_res.get("detections", [])):
+        box = det.get("box", [0, 0, 1000, 1000])
+        xmin, ymin, xmax, ymax = box
+        bbox = [
+            (xmin / 1000.0) * width,
+            (ymin / 1000.0) * height,
+            (xmax / 1000.0) * width,
+            (ymax / 1000.0) * height
+        ]
+        
+        name = det.get("name", "Unknown Item")
+        carbon_val = float(det.get("carbon_footprint", 0.0))
+        label = f"{name} (CO2e: {carbon_val:.2f} kg)"
+        
+        output.append({
+            "class_id": i,
+            "label": label,
+            "bbox": bbox,
+            "confidence": 1.0,
+            "text": vlm_res.get("text", []),
+            "name": name,
+            "carbon_footprint": carbon_val,
+            "footprint_explanation": det.get("footprint_explanation", "")
+        })
             
     return {
         "success": True,
-        "detections": detections_with_text
+        "detections": output
     }
+
+@app.post("/footprint")
+async def footprint(file: UploadFile = File(...)):
+    img_bytes = await file.read()
+    try:
+        res = await get_vlm_result(img_bytes)
+        return {"success": True, "detections": res.get("detections", [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Carbon footprint estimation failed: {e}")
 
 if __name__ == "__main__":
     import uvicorn
