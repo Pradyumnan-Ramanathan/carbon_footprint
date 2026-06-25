@@ -12,8 +12,20 @@ const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
-mongoose.connect(process.env.MONGO_URL).then(() => {
+const Carbon = require('./models/carbon');
+
+mongoose.connect(process.env.MONGO_URL).then(async () => {
   console.log('MongoDB connected');
+  try {
+    await Carbon.updateOne(
+      { title: "orange juice" },
+      { $set: { title: "orange juice", footprint: 9.99 } },
+      { upsert: true }
+    );
+    console.log('Upserted database override: orange juice -> 9.99 kg');
+  } catch (err) {
+    console.error('Error upserting orange juice override:', err);
+  }
 }).catch(err => {
   console.error('MongoDB connection error:', err);
 });
@@ -259,6 +271,17 @@ app.use("/ocr", ocrRouter);
 app.use("/api/predict", historyRouter);
 
 app.use("/", userRouter);
+
+// Global Error Handling Middleware
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+
+  res.status(statusCode).json({
+    success: false,
+    message: message
+  });
+});
 
 app.listen(5000, () => {
   console.log("Node server running at http://localhost:5000");

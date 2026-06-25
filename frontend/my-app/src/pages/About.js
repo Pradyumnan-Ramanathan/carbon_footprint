@@ -28,7 +28,7 @@ export default function About() {
                     <ol className="text-muted" style={{ lineHeight: "1.8", fontSize: "1.05rem", paddingLeft: "20px", listStyleType: "decimal" }}>
                         <li className="mb-2">Users securely log in to their account using cookies.</li>
                         <li className="mb-2">They upload images of environments, products, or receipts.</li>
-                        <li className="mb-2">Our backend processes YOLO objects, depth estimation, and OCR text.</li>
+                        <li className="mb-2">Our backend processes VLM objects and depth estimation.</li>
                         <li className="mb-2">Users receive instant feedback along with precise environmental insights.</li>
                     </ol>
                 </section>

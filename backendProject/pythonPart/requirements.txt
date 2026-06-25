@@ -10,5 +10,6 @@ python-multipart
 timm==0.6.13
 einops
 easyocr
+openai
 scikit-image
 matplotlib

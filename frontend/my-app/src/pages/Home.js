@@ -12,7 +12,7 @@ export default function Home() {
                     AI-Powered Carbon Footprint Analyzer
                 </h1>
                 <p className="hero-subtitle">
-                    Upload images of your environment or items and get instant, secure, AI-driven carbon footprint analysis using our custom YOLO and OCR models.
+                    Upload images of your environment or items and get instant, secure, AI-driven carbon footprint analysis using our Vision-Language Model (VLM).
                 </p>
 
                 {/* CONDITIONAL BUTTON */}
@@ -74,7 +74,7 @@ export default function Home() {
                     <div className="text-center">
                         <div className="feature-icon">3️⃣</div>
                         <h3 className="feature-title">Get Analysis</h3>
-                        <p className="feature-desc">View YOLO detection, Depth Estimation, and OCR all in one dashboard.</p>
+                        <p className="feature-desc">View VLM detection and Depth Estimation in one dashboard.</p>
                     </div>
                 </div>
             </section>
