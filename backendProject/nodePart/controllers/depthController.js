@@ -17,7 +17,7 @@ exports.estimateDepth = async (req, res) => {
             formData,
             {
                 headers: formData.getHeaders(),
-                timeout: 60000,
+                timeout: 180000,
             }
         );
 
@@ -30,6 +30,6 @@ exports.estimateDepth = async (req, res) => {
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
-        res.status(500).json({ error: "Depth estimation failed" });
+        res.json({ error: "Depth estimation unavailable." });
     }
 };

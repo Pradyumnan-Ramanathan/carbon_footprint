@@ -534,3 +534,150 @@ button {
 .text-muted {
   color: var(--text-muted);
 }
+
+/* AI Environmental Insight Premium UI Styles */
+.insight-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  padding: 36px;
+  margin-bottom: 30px;
+  font-family: inherit;
+  transition: var(--transition);
+}
+
+.insight-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.insight-header {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.insight-impact-section {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.insight-impact-label {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.insight-impact-value {
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: var(--primary, #059669);
+  margin-top: 8px;
+}
+
+.insight-divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 24px 0;
+  height: 0;
+}
+
+.insight-analogies {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.insight-analogy-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 4px solid var(--secondary, #10b981);
+  transition: var(--transition);
+}
+
+.insight-analogy-item:hover {
+  background: #f1f5f9;
+  transform: translateX(4px);
+}
+
+.insight-analogy-icon {
+  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+}
+
+.insight-analogy-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.insight-analogy-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.insight-analogy-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
+.insight-observation-section {
+  background: rgba(5, 150, 105, 0.02);
+  border: 1px solid rgba(5, 150, 105, 0.08);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 28px;
+}
+
+.insight-observation-header {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+}
+
+.insight-observation-text {
+  font-size: 0.95rem;
+  color: var(--text-main);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.insight-recommendation-text {
+  font-size: 0.95rem;
+  color: var(--text-main);
+  line-height: 1.6;
+  font-style: italic;
+  border-top: 1px solid rgba(5, 150, 105, 0.08);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+/* Spinner for loader */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

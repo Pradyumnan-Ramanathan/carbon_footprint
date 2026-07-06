@@ -19,7 +19,7 @@ exports.detect = async (req, res) => {
 			formData,
 			{
 				headers: formData.getHeaders(),
-				timeout: 60000,
+				timeout: 180000,  // 3 minutes — VLM free tier can be slow
 			}
 		);
 
@@ -72,5 +72,24 @@ exports.detect = async (req, res) => {
 			fs.unlinkSync(req.file.path);
 		}
 		res.status(500).json({ error: "Object detection failed" });
+	}
+};
+
+exports.getSummary = async (req, res) => {
+	try {
+		const { detections, depth } = req.body;
+
+		const summaryResponse = await axios.post(
+			"http://localhost:8000/summary",
+			{ detections, depth },
+			{ timeout: 60000 }  // 1 min — LLM has its own internal retry with 10s timeout
+		);
+
+		res.json(summaryResponse.data);
+	} catch (error) {
+		console.error("Summary generation error:", error.message);
+		res.json({
+			error: "Environmental Insight is temporarily unavailable."
+		});
 	}
 };
